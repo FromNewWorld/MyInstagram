@@ -16,8 +16,25 @@ import os
 
 @app.route('/')
 def index():
-    images = Image.query.order_by(db.desc(Image.id)).limit(10).all()
-    return render_template('index.html', images=images)
+    paginate = Image.query.order_by(db.desc(Image.id)).paginate(page=1, per_page=10)
+    return render_template('index.html', images=paginate.items, has_next=paginate.has_next)
+
+
+@app.route('/index/<int:page>/<int:per_page>/')
+def index_images(page, per_page):
+    paginate = Image.query.order_by(db.desc(Image.id)).paginate(page=page, per_page=per_page, error_out=False)
+    map = {'has_next': paginate.has_next}
+    images = []
+    for image in paginate.items:
+        comments = []
+        for comment in image.comments:
+            comments.append({'comment_uid': comment.user.id, 'comment_username': comment.user.username})
+        imgvo = {'id': image.id, 'url': image.url, 'comment_count': len(image.comments), 'uid': image.user.id,
+                 'username': image.user.username, 'user_head': image.user.head_url, 'time': image.created_time,
+                 'comments': comments}
+        images.append(imgvo)
+    map['images'] = images
+    return json.dumps(map)
 
 
 @app.route('/image/<int:image_id>/')
